@@ -1,4 +1,4 @@
-## Amazon Sagemaker Cloudformation Custom Resource
+# Amazon Sagemaker Cloudformation Custom Resource
 
 Deploy Amazon SageMaker notebook using CloudFormation custom resource
 
