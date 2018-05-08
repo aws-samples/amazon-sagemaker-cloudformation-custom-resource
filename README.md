@@ -39,7 +39,7 @@ This CloudFormation template requires only the first one. Instance type defaults
 **Note:** Two new parameters, Lifecycle Config Name and Direct Internet Access, have been recently added to Amazon SageMaker. However, these parameters are not available to CloudFormation custom resource at this time. At the time of this writing, setting these two parameter values will have no effect. However the AWS Lambda code embedded in the template contains lines that have been commented out. These lines can be uncommented in the future when the feature becomes available.
 
 ### Launching the template from the AWS CloudFormation Console
-Upload the provided CloudFormation template to your Amazon S3 bucket or re-use the provided [launch template][1] link.
+Upload the provided [CloudFormation template](templates/sagemaker-custom-resource.yaml) to your Amazon S3 bucket or re-use the provided [launch template][1] link.
 
 ### Launching the template using the AWS CLI
 
@@ -47,7 +47,7 @@ From the AWS CLI, execute the following command, substituting the stack name, no
 
 ```bash
 aws cloudformation --region us-east-1 create-stack --stack-name <my-sagemaker-stack> \
-  --template-url https://s3.amazonaws.com/aws-cfn-samples/sagemaker/custom-resource/sagemaker-custom-resource.yml\
+  --template-url https://s3.amazonaws.com/aws-cfn-samples/sagemaker/custom-resource/sagemaker-custom-resource.yaml\
   --parameters ParameterKey=NotebookInstanceName,ParameterValue=<my-notebook> \
   --capabilities "CAPABILITY_IAM" \
   --disable-rollback
@@ -57,7 +57,7 @@ If you need to supply all the input parameters, it is easier to specify the para
 
 ```bash
 aws cloudformation --region us-east-1 create-stack --stack-name <my-sagemaker-stack> \
-  --template-url https://s3.amazonaws.com/aws-cfn-samples/sagemaker/custom-resource/sagemaker-custom-resource.yml \
+  --template-url https://s3.amazonaws.com/aws-cfn-samples/sagemaker/custom-resource/sagemaker-custom-resource.yaml \
   --parameters file://sagemaker-params.txt \
   --capabilities "CAPABILITY_IAM" \
   --disable-rollback
@@ -110,8 +110,8 @@ After the stack launch is complete, you can validate the deployment.
  
 3.	Delete CloudWatch logs. The stack will create a CloudWatch log group with name that matched your CloudFormation stack. In the CloudWatch logs console, spot the log group and delete it.
  
-[1]: https://s3.amazonaws.com/aws-cfn-samples/sagemaker/custom-resource/sagemaker-custom-resource.yml
+[1]: https://s3.amazonaws.com/aws-cfn-samples/sagemaker/custom-resource/sagemaker-custom-resource.yaml
 
 ## License Summary
 
-This sample code is made available under a modified MIT license. See the LICENSE file.
+This sample code is made available under a modified MIT license. See the [LICENSE](LICENSE) file.
