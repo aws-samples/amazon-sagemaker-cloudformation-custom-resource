@@ -1,0 +1,10 @@
+[
+    {
+        "ParameterKey": "NotebookInstanceType",
+        "ParameterValue": "ml.t2.medium"
+    },
+    {
+        "ParameterKey": "NotebookInstanceName",
+        "ParameterValue": "my-sagemaker-notebook"
+    }
+]
