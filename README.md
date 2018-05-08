@@ -34,7 +34,7 @@ Launching a SageMaker notebook requires three mandatory parameters:
 * Notebook Instance Type, and 
 * IAM Role for the notebook instance. 
 
-Launching an Amazon SageMaker notebook requires three mandatory parameters: Notebook Instance Name, Notebook Instance Type, and IAM Role for the notebook instance. This CloudFormation template requires only the first one. Instance type defaults to ml.t2.medium. If you specify an IAM role, that role is used, otherwise, a new role is created with the AmazonSageMakerFullAccess policy attached and an additional inline policy that provides access to the SageMakerS3Bucket if the parameter is not blank.	
+This CloudFormation template requires only the first one. Instance type defaults to ml.t2.medium. If you specify an IAM role, that role is used, otherwise, a new role is created with the AmazonSageMakerFullAccess policy attached and an additional inline policy that provides access to the SageMakerS3Bucket if the parameter is not blank.	
 
 **Note:** Two new parameters, Lifecycle Config Name and Direct Internet Access, have been recently added to Amazon SageMaker. However, these parameters are not available to CloudFormation custom resource at this time. At the time of this writing, setting these two parameter values will have no effect. However the AWS Lambda code embedded in the template contains lines that have been commented out. These lines can be uncommented in the future when the feature becomes available.
 
