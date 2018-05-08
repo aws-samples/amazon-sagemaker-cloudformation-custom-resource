@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Custom resource to create a SageMaker notebook. License: Apache 2.0 (Please do not remove) (qs-1o9abmj8n)'
+Description: 'Custom resource to create a SageMaker notebook. License: (MIT-0: https://github.com/aws/mit-0) (qs-1o9abmj8n)'
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
