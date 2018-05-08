@@ -1,0 +1,274 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Custom resource to create a SageMaker notebook. License: Apache 2.0 (Please do not remove) (qs-1o9abmj8n)'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Required SageMaker Parameters
+        Parameters:
+          - NotebookInstanceName
+          - NotebookInstanceType
+          - SageMakerRoleArn
+      - Label:
+          default: Optional SageMaker Parameters
+        Parameters:
+          - DirectInternetAccess
+          - SubnetId
+          - SecurityGroupId
+          - SageMakerS3Bucket
+          - KMSKeyId
+          - LifecycleConfigName
+    ParameterLabels:
+      DirectInternetAccess:
+        default: Default Internet Access
+      KMSKeyId:
+        default: KMS Key Id
+      LifecycleConfigName:
+        default: Lifecycle Config Name
+      NotebookInstanceName:
+        default: Notebook Instance Name
+      NotebookInstanceType:
+        default: Notebook Instance Type
+      SubnetId:
+        default: Subnet Id
+      SecurityGroupId:
+        default: Security Group Id
+      SageMakerRoleArn:
+        default: SageMaker IAM Role
+      SageMakerS3Bucket:
+        default: SageMaker S3 Bucket
+Parameters:
+  NotebookInstanceName:
+    AllowedPattern: '[A-Za-z0-9-]{1,63}'
+    ConstraintDescription: Maximum of 63 alphanumeric characters. Can include hyphens
+      (-), but not spaces. Must be unique within your account in an AWS Region.
+    Description: SageMaker Notebook instance name
+    MaxLength: '63'
+    MinLength: '1'
+    Type: String
+  NotebookInstanceType:
+    AllowedValues:
+      - ml.t2.medium
+      - ml.m4.xlarge
+      - ml.p2.xlarge
+    ConstraintDescription: Must select a valid notebook instance type.
+    Default: ml.t2.medium
+    Description: Select Instance type for the SageMaker Notebook
+    Type: String
+  SubnetId:
+    Description: The ID of the subnet in a VPC to which you would like to have a connectivity
+      from your ML compute instance.
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|(subnet-[0-9a-z]{8})|(subnet-[0-9a-z]{17})'
+  SecurityGroupId:
+    Description: The VPC security group IDs, in the form sg-xxxxxxxx. The security
+      groups must be for the same VPC as specified in the subnet.
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|(sg-[0-9a-z]{8})|(sg-[0-9a-z]{17})'
+  SageMakerRoleArn:
+    Description: ARN of the SageMaker IAM execution role. If you don't specify a role, a new role is created with AmazonSageMakerFullAccess managed policy and access is provided to SageMakerS3Bucket, if provided.
+    Type: String
+    Default: ''
+  SageMakerS3Bucket:
+    Description: Name of a pre-existing bucket that SageMaker will be granted full access
+    Type: String
+    Default: ''
+  KMSKeyId:
+    Description: AWS KMS key ID used to encrypt data at rest on the ML storage volume attached to notebook instance.
+    Type: String
+    Default: ''
+  LifecycleConfigName:
+    Description: Not yet available to custom resource. Notebook lifecycle configuration to associate with the notebook instance
+    Type: String
+    Default: ''
+  DirectInternetAccess:
+    Description: Not yet available to custom resource. Sets whether SageMaker notebook instance has internet access. If you set this to Disabled this notebook instance will be able to access resources only in your VPC. This is used only if SubnetId is not empty.
+    Type: String
+    AllowedValues:
+      - Enabled
+      - Disabled
+    ConstraintDescription: Must select a valid notebook instance type.
+    Default: Enabled
+Conditions:
+  S3BucketEmpty:
+    Fn::Equals:
+    - ''
+    - Ref: SageMakerS3Bucket
+  S3BucketNotEmpty:
+    Fn::Not:
+    - Condition: S3BucketEmpty
+  RoleArnEmpty:
+    Fn::Equals:
+    - ''
+    - Ref: SageMakerRoleArn
+  RoleArnNotEmpty:
+    Fn::Not:
+    - Condition: RoleArnEmpty
+  KMSKeyNotEmpty:
+    !Not [!Equals [!Ref KMSKeyId, '']]
+  LifecycleNotEmpty:
+    !Not [!Equals [!Ref LifecycleConfigName, '']]
+Resources:
+  SageMakerExecutionRole:
+    Condition: RoleArnEmpty
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "sagemaker.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
+      Path: "/service-role/"
+      Policies:
+        Fn::If:
+        - S3BucketNotEmpty
+        -
+          - PolicyName: SageMakerS3BucketAccess
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:*
+                  Resource:
+                    - !Sub 'arn:aws:s3:::${SageMakerS3Bucket}'
+                    - !Sub 'arn:aws:s3:::${SageMakerS3Bucket}/*'
+        - Ref: AWS::NoValue
+  NotebookCloudWatchLogGroup:
+    Type: AWS::Logs::LogGroup
+  CreateNotebookFunctionExecuteRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: CreateNotebookFunctionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - sagemaker:*
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  Fn::If:
+                  - RoleArnNotEmpty
+                  - !Ref 'SageMakerRoleArn'
+                  - !GetAtt 'SageMakerExecutionRole.Arn'
+              - Effect: Allow
+                Action:
+                  - ec2:*
+                Resource: '*'
+  CreateNotebookFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Create a SageMaker Notebook instance and return the ARN.
+      Handler: index.lambda_handler
+      Runtime: python3.6
+      Timeout: '300'
+      Role: !GetAtt 'CreateNotebookFunctionExecuteRole.Arn'
+      Code:
+        ZipFile: |
+          import json
+          import cfnresponse
+          import boto3
+
+          client = boto3.client('sagemaker')
+
+          def lambda_handler(event, context):
+            if event['RequestType'] == 'Delete':
+              try:
+                print('Received delete event')
+                print(str(event))
+                delete_response = client.stop_notebook_instance(
+                  NotebookInstanceName=event['ResourceProperties']['NotebookInstanceName']
+                )
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as inst:
+                print(inst)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+            else:
+              try:
+                subnetId = event['ResourceProperties']['SubnetId']
+                sgId = event['ResourceProperties']['SecurityGroupId']
+                kmsKeyId = event['ResourceProperties']['KMSKeyId']
+                lcConfig = event['ResourceProperties']['LifecycleConfigName']
+                internetAccess = event['ResourceProperties']['DirectInternetAccess']
+
+                input_dict = {}
+                input_dict['NotebookInstanceName'] = event['ResourceProperties']['NotebookInstanceName']
+                input_dict['InstanceType'] = event['ResourceProperties']['NotebookInstanceType']
+                input_dict['RoleArn'] = event['ResourceProperties']['SageMakerRoleArn']
+
+                #Not yet available to custom resource
+                #input_dict['DirectInternetAccess'] = internetAccess
+                #if not subnetId:
+                #  input_dict['DirectInternetAccess'] = 'Enabled'
+                #if lcConfig:
+                #  input_dict['LifecycleConfigName'] = lcConfig
+
+                if subnetId:
+                  input_dict['SubnetId'] = subnetId
+                if sgId:
+                  input_dict['SecurityGroupIds'] = [sgId]
+                if kmsKeyId:
+                  input_dict['KmsKeyId'] = kmsKeyId
+
+                instance = client.create_notebook_instance(**input_dict)
+
+                # waiter = client.get_waiter('notebook_instance_in_service')
+                # waiter.wait(NotebookInstanceName=event['ResourceProperties']['NotebookInstanceName'])
+                print('Sagemager CLI response')
+                print(str(instance))
+                responseData = {'NotebookInstanceArn': instance['NotebookInstanceArn']}
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+              except Exception as inst:
+                print(inst)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+  CreateNotebook:
+    Type: Custom::CreateNotebook
+    Properties:
+      ServiceToken: !GetAtt 'CreateNotebookFunction.Arn'
+      NotebookInstanceName: !Ref 'NotebookInstanceName'
+      NotebookInstanceType: !Ref 'NotebookInstanceType'
+      SubnetId: !Ref 'SubnetId'
+      SecurityGroupId: !Ref 'SecurityGroupId'
+      KMSKeyId: !Ref 'KMSKeyId'
+      LifecycleConfigName: !Ref 'LifecycleConfigName'
+      DirectInternetAccess: !Ref 'DirectInternetAccess'
+      SageMakerRoleArn:
+        Fn::If:
+        - RoleArnNotEmpty
+        - !Ref 'SageMakerRoleArn'
+        - !GetAtt 'SageMakerExecutionRole.Arn'
+      Version: 1
+Outputs:
+  NotebookARN:
+    Description: SageMaker Notebook ARN
+    Value: !GetAtt
+      - CreateNotebook
+      - NotebookInstanceArn
